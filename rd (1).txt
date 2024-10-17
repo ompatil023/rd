@@ -1,0 +1,1209 @@
+ 
+SLIP 1 
+ 
+BANK DATABASE 
+  
+Q.1) Create a View:  
+
+CREATE VIEW Customers_Pimpri_Branch AS SELECT c.cname FROM Customer c JOIN Ternary t ON c.Cno = t.Cno JOIN Branch b ON t.Bid = b.Bid WHERE 
+b.brcity = 'Pimpri';  
+SELECT * FROM Customers_Pimpri_Branch; 
+
+CREATE VIEW Customers_Loan_Same_City AS SELECT c.cname FROM Customer c JOIN Ternary t ON c.Cno = t.Cno JOIN Branch b ON t.Bid = b.Bid 
+WHERE c.city = b.brcity; 
+SELECT * FROM Customers_Loan_Same_City; 
+ 
+Q.2) Using above database solve following questions:  
+
+CREATE OR REPLACE FUNCTION 
+prevent_customer_number_update() 
+RETURNS TRIGGER AS $$ 
+BEGIN 
+    RAISE EXCEPTION 'You can’t change existing customer number'; 
+    RETURN NULL;  
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+CREATE TRIGGER trigger_prevent_customer_number_update 
+BEFORE UPDATE OF Cno ON Customer 
+FOR EACH ROW 
+EXECUTE FUNCTION prevent_customer_number_update(); 
+ 
+UPDATE Customer SET Cno = 2 WHERE Cno = 1 
+ 
+CREATE OR REPLACE FUNCTION 
+get_loan_info_by_branch(branch_name VARCHAR) 
+RETURNS VOID AS $$ 
+BEGIN 
+    FOR rec IN 
+        SELECT l.Lno, l.l_amt_required, l.lamtapproved, l.l_date 
+        FROM Loan_application l 
+        JOIN Ternary t ON l.Lno = t.Lno 
+        JOIN Branch b ON t.Bid = b.Bid 
+        WHERE b.brname = branch_name 
+    LOOP 
+        RAISE NOTICE 'Loan No: %, Amount Required: %, Approved 
+Amount: %, Date: %', rec.Lno, rec.l_amt_required, rec.lamtapproved, 
+rec.l_date; 
+    END LOOP; 
+END; 
+$$ LANGUAGE plpgsql; 
+
+SELECT get_loan_info_by_branch('Pimpri'); 
+
+ 
+SLIP 2 
+ 
+BANK DATABASE 
+ 
+Q.1) Create a View:  
+CREATE VIEW Customers_Loan_500k AS SELECT c.* FROM Customer c JOIN Ternary t ON c.Cno = t.Cno JOIN Loan_application l ON t.Lno = l.Lno WHERE 
+l.l_amt_required = 500000;  
+SELECT * FROM Customers_Loan_500k 
+CREATE VIEW Loans_From_Aundh_Branch AS SELECT l.* FROM Loan_application l JOIN Ternary t ON l.Lno = t.Lno JOIN Branch b ON t.Bid = b.Bid 
+WHERE b.brcity = 'Aundh'; 
+SELECT * FROM Loans_From_Aundh_Branch; 
+ 
+Q.2) Using above database solve following questions:  
+ 
+ 
+CREATE OR REPLACE FUNCTION validate_loan_amount() 
+RETURNS TRIGGER AS $$ 
+BEGIN 
+    IF NEW.lamtapproved > NEW.l_amt_required THEN 
+        RAISE EXCEPTION 'Loan amount approved must be less than 
+or equal to the loan amount required'; 
+    END IF; 
+    RETURN NEW;  
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+CREATE TRIGGER trigger_validate_loan_amount 
+BEFORE INSERT OR UPDATE ON Loan_application 
+FOR EACH ROW 
+EXECUTE FUNCTION validate_loan_amount(); 
+ 
+INSERT INTO Loan_application VALUES (104, 300000, 400000, 
+'2024-09-15'); 
+ 
+
+ 
+CREATE OR REPLACE FUNCTION 
+count_customers_in_branch(branch_name VARCHAR) 
+RETURNS INT AS $$ 
+DECLARE 
+    customer_count INT; 
+BEGIN 
+    SELECT COUNT(c.Cno) INTO customer_count 
+    FROM Customer c 
+    JOIN Ternary t ON c.Cno = t.Cno 
+    JOIN Branch b ON t.Bid = b.Bid 
+    WHERE b.brname = branch_name; 
+ 
+    IF customer_count IS NULL OR customer_count = 0 THEN 
+        RAISE NOTICE 'Invalid branch name'; 
+        RETURN 0; 
+    ELSE 
+        RETURN customer_count; 
+    END IF; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+SELECT count_customers_in_branch('Aundh'); 
+
+
+
+ 
+SLIP 3 
+ 
+BANK DATABASE 
+ 
+Q.1) Create a View:  
+CREATE VIEW Customers_Loan_Above_200k AS SELECT c.cname FROM Customer c JOIN Ternary t ON c.Cno = t.Cno JOIN Loan_application l ON t.Lno = 
+l.Lno WHERE l.l_amt_required > 200000;  
+SELECT * FROM Customers_Loan_Above_200k; 
+CREATE VIEW Branch_Wise_Customers AS SELECT b.brname, c.cname FROM Branch b JOIN Ternary t ON b.Bid = t.Bid JOIN Customer c ON t.Cno = 
+c.Cno; 
+SELECT * FROM Branch_Wise_Customers; 
+ 
+Q.2) Using above database solve following questions:  
+ 
+ 
+CREATE OR REPLACE FUNCTION validate_customer_number() 
+RETURNS TRIGGER AS $$ 
+BEGIN 
+    IF NEW.Cno <= 0 THEN 
+        RAISE EXCEPTION 'Customer number must be greater than 
+zero'; 
+    END IF; 
+    RETURN NEW;  
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+CREATE TRIGGER trigger_validate_customer_number 
+BEFORE INSERT ON Customer 
+FOR EACH ROW 
+EXECUTE FUNCTION validate_customer_number(); 
+ 
+INSERT INTO Customer VALUES (-1, 'John', '101 Main St', 'Pune'); 
+ 
+ 
+CREATE OR REPLACE FUNCTION display_customer_loan_details() 
+RETURNS VOID AS $$ 
+DECLARE 
+    customer_cursor CURSOR FOR 
+        SELECT c.cname, c.caddr, l.lamtapproved 
+        FROM Customer c 
+        JOIN Ternary t ON c.Cno = t.Cno 
+        JOIN Loan_application l ON t.Lno = l.Lno; 
+ 
+    customer_record RECORD; 
+BEGIN 
+    OPEN customer_cursor; 
+ 
+    LOOP 
+        FETCH customer_cursor INTO customer_record; 
+ 
+        EXIT WHEN NOT FOUND; 
+ 
+        RAISE NOTICE 'Customer Name: %, Address: %, Approved Loan 
+Amount: %', customer_record.cname, customer_record.caddr, 
+customer_record.lamtapproved; 
+    END LOOP; 
+ 
+    CLOSE customer_cursor; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+SELECT display_customer_loan_details(); 
+ 
+ 
+
+
+ 
+SLIP 4
+
+
+BUS-TRANSPORT SYSTEM 
+ 
+Q.1) Create a View:  
+1. CREATE VIEW Morning_Shift_Drivers AS SELECT d.Driver_no, d.driver_name, d.license_no, d.address, d.age, d.salary FROM Driver d JOIN 
+Bus_Driver bd ON d.Driver_no = bd.Driver_no WHERE bd.Shift = 1; 
+SELECT * FROM Morning_Shift_Drivers; 
+ 
+2. CREATE VIEW High_Salary_Drivers AS SELECT * FROM Driver WHERE salary > 20000; 
+SELECT * FROM High_Salary_Drivers; 
+ 
+Q.2) Using above database solve following questions:  
+ 
+1. CREATE OR REPLACE FUNCTION check_driver_age()  
+RETURNS TRIGGER AS $$ 
+BEGIN 
+IF NEW.age < 18 OR NEW.age > 35 THEN 
+RAISE EXCEPTION 'Invalid input: Driver age must be between 18 and 
+35.'; 
+END IF; 
+RETURN NEW; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+CREATE TRIGGER trigger_check_age 
+BEFORE INSERT ON Driver 
+FOR EACH ROW 
+EXECUTE FUNCTION check_driver_age(); 
+ 
+INSERT INTO Driver VALUES (6, 'Manoj', 998877, 'Nagpur', 40, 20000); 
+ 
+INSERT INTO Driver VALUES (5, 'Suresh', 112233, 'Delhi', 30, 25000); 
+ 
+ 
+ 
+ 
+2. CREATE OR REPLACE FUNCTION get_buses_by_route(route_id INT) 
+RETURNS VOID AS $$ 
+DECLARE 
+    bus_record RECORD; 
+BEGIN 
+    RAISE NOTICE 'Function get_buses_by_route called with route_id: 
+%', route_id; 
+ 
+    IF NOT EXISTS (SELECT 1 FROM Route WHERE Route_no = route_id) 
+THEN 
+        RAISE EXCEPTION 'Route ID % does not exist', route_id; 
+    END IF; 
+     
+    FOR bus_record IN 
+        SELECT b.Bus_no, b.capacity, b.depot_name 
+        FROM Bus b 
+        JOIN Bus_Route br ON b.Bus_no = br.Bus_no 
+        WHERE br.Route_no = route_id 
+    LOOP 
+        RAISE NOTICE 'Bus_no: %, Capacity: %, Depot_name: %',  
+                     bus_record.Bus_no, bus_record.capacity, 
+bus_record.depot_name; 
+    END LOOP; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+SELECT get_buses_by_route(1); 
+ 
+
+ 
+SLIP 5 
+
+ 
+BUS-TRANSPORT SYSTEM 
+
+Q.1) Create a View:  
+
+1. CREATE VIEW Bus_102_Drivers AS SELECT b.Bus_no, b.capacity, b.depot_name, d.Driver_no, d.driver_name, d.license_no, bd.Shift, bd.Date_of_duty_allotted 
+FROM Bus b JOIN Bus_Driver bd ON b.Bus_no = bd.Bus_no JOIN Driver d ON bd.Driver_no = d.Driver_no WHERE b.Bus_no = 102; 
+SELECT * FROM Bus_102_Drivers; 
+ 
+2. CREATE VIEW Route_Bus_Capacity_30 AS SELECT r.Route_no, r.source, r.destination, r.no_of_stations FROM Route r JOIN Bus_Route br ON r.Route_no = 
+br.Route_no JOIN Bus b ON br.Bus_no = b.Bus_no WHERE b.capacity = 30; 
+SELECT * FROM Route_Bus_Capacity_30; 
+ 
+Q.2) Using above database solve following questions:  
+ 
+1.  CREATE OR REPLACE FUNCTION check_driver_salary()  
+RETURNS TRIGGER AS $$ 
+BEGIN 
+    IF NEW.salary <= 0 THEN 
+        RAISE EXCEPTION 'Invalid Salary: Salary must be greater than 
+zero.'; 
+    END IF; 
+    RETURN NEW; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+CREATE TRIGGER trigger_check_salary 
+BEFORE INSERT ON Driver 
+FOR EACH ROW 
+EXECUTE FUNCTION check_driver_salary(); 
+ 
+INSERT INTO Driver VALUES (7, 'Karan', 445566, 'Chennai', 28, 0); 
+ 
+INSERT INTO Driver VALUES (7, 'Vijay', 223344, 'Goa', 32, 18000); 
+ 
+ 
+ 
+2. CREATE OR REPLACE FUNCTION get_driver_dates(d_name VARCHAR)  
+RETURNS VOID AS $$ 
+DECLARE 
+    rec RECORD; 
+BEGIN 
+    FOR rec IN  
+        SELECT bd.Date_of_duty_allotted 
+        FROM Bus_Driver bd 
+        JOIN Driver d ON bd.Driver_no = d.Driver_no 
+        WHERE d.driver_name = d_name 
+    LOOP 
+        RAISE NOTICE 'Date of duty: %', rec.Date_of_duty_allotted; 
+    END LOOP; 
+ 
+    IF NOT FOUND THEN 
+        RAISE NOTICE 'No records found for driver: %', d_name; 
+    END IF; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+SELECT get_driver_dates('Rajesh'); 
+ 
+SLIP 6 
+ 
+Q.1) Create a View:  
+1. CREATE VIEW Drivers_Both_Shifts AS SELECT d.driver_name FROM Driver d JOIN Bus_Driver bd1 ON d.Driver_no = bd1.Driver_no AND bd1.Shift = 
+1 JOIN Bus_Driver bd2 ON d.Driver_no = bd2.Driver_no AND bd2.Shift = 2 GROUP BY d.driver_name; 
+SELECT * FROM Drivers_Both_Shifts; 
+ 
+2. CREATE VIEW Route_Bus_101 AS SELECT r.Route_no, r.source, r.destination, r.no_of_stations FROM Route r JOIN Bus_Route br ON r.Route_no = 
+br.Route_no WHERE br.Bus_no = 101; 
+SELECT * FROM Route_Bus_101; 
+ 
+Q.2) Using above database solve following questions:  
+ 
+1. CREATE OR REPLACE FUNCTION after_delete_bus()  
+RETURNS TRIGGER AS $$ 
+BEGIN 
+    IF OLD.capacity < 20 THEN 
+        RAISE NOTICE 'Bus with capacity less than 20 has been 
+deleted.'; 
+    END IF; 
+    RETURN OLD; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+CREATE TRIGGER trigger_after_delete_bus 
+AFTER DELETE ON Bus 
+FOR EACH ROW 
+EXECUTE FUNCTION after_delete_bus(); 
+ 
+INSERT INTO Bus VALUES (103, 15, 'Depot C'); 
+ 
+DELETE FROM Bus WHERE Bus_no = 103; 
+ 
+DELETE FROM Bus WHERE Bus_no = 101; 
+
+ 
+2. CREATE OR REPLACE FUNCTION display_buses_on_route_1() 
+RETURNS VOID AS $$ 
+DECLARE 
+    rec RECORD; 
+BEGIN 
+    FOR rec IN  
+        SELECT b.Bus_no, b.capacity, b.depot_name 
+        FROM Bus b 
+        JOIN Bus_Route br ON b.Bus_no = br.Bus_no 
+        WHERE br.Route_no = 1 
+    LOOP 
+        RAISE NOTICE 'Bus No: %, Capacity: %, Depot: %', 
+rec.Bus_no, rec.capacity, rec.depot_name; 
+    END LOOP; 
+ 
+    IF NOT FOUND THEN 
+        RAISE NOTICE 'No buses found on Route No: 1'; 
+    END IF; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+SELECT display_buses_on_route_1(); 
+SANCHET KOLEKAR
+ 
+
+SLIP 7 
+
+
+ 
+RAILWAY RESERVATION 
+
+Q.1) Create a View:  
+1. CREATE VIEW Shatabdi_Waiting AS SELECT P.passenger_name FROM Passenger P JOIN Ticket T ON P.Passenger_id = T.Passenger_id JOIN Train TR 
+ON T.Train_no = TR.Train_no WHERE TR.train_name = 'Shatabdi Express' AND T.ticket_status = 'W' AND T.tdate = '2022-03-02'; 
+SELECT * FROM Shatabdi_Waiting; 
+ 
+2. CREATE VIEW Rajdhani_Bookings AS SELECT T.Ticket_no, P.passenger_name, T.ticket_amt FROM Passenger P JOIN Ticket T ON P.Passenger_id = 
+T.Passenger_id JOIN Train TR ON T.Train_no = TR.Train_no WHERE TR.train_name = 'Rajdhani Express' AND T.tdate = '2021-05-04' ORDER BY 
+T.Ticket_no LIMIT 3; 
+SELECT * FROM Rajdhani_Bookings; 
+ 
+Q.2) Using above database solve following questions:  
+ 
+CREATE OR REPLACE FUNCTION restrict_bogie_capacity() RETURNS 
+TRIGGER AS $$ 
+BEGIN 
+  IF NEW.bogie_capacity > 25 THEN 
+    RAISE EXCEPTION 'Bogie capacity cannot exceed 30'; 
+  END IF; 
+  RETURN NEW; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+CREATE TRIGGER check_bogie_capacity 
+BEFORE INSERT OR UPDATE ON Train 
+FOR EACH ROW EXECUTE FUNCTION restrict_bogie_capacity(); 
+ 
+INSERT INTO Train VALUES (103, 'Duronto Express', '09:00', '15:00', 
+'Kolkata', 'Mumbai', 12, 35); 
+ 
+ 
+ 
+CREATE OR REPLACE FUNCTION 
+display_train_wise_confirmed_bookings() 
+RETURNS VOID AS $$ 
+DECLARE 
+  train_record RECORD; 
+  ticket_record RECORD; 
+  booking_date DATE := '2022-04-19'; 
+BEGIN 
+  FOR train_record IN SELECT Train_no, train_name FROM Train 
+  LOOP 
+    RAISE NOTICE 'Train: %, Train Name: %', train_record.Train_no, 
+train_record.train_name; 
+     
+    FOR ticket_record IN 
+      SELECT T.Ticket_no, P.passenger_name, T.ticket_amt 
+      FROM Ticket T 
+      JOIN Passenger P ON T.Passenger_id = P.Passenger_id 
+      WHERE T.Train_no = train_record.Train_no 
+      AND T.ticket_status = 'C' 
+      AND T.tdate = booking_date 
+    LOOP 
+      RAISE NOTICE 'Ticket No: %, Passenger: %, Amount: %', 
+ticket_record.Ticket_no, ticket_record.passenger_name, 
+ticket_record.ticket_amt; 
+    END LOOP; 
+     
+  END LOOP; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+SELECT display_train_wise_confirmed_bookings(); 
+SANCHET KOLEKAR
+ 
+SLIP 8 
+ 
+RAILWAY RESERVATION 
+
+Q.1) Create a View:  
+
+1. CREATE VIEW Shatabdi_Confirmed_Passengers AS SELECT P.passenger_name FROM Passenger P JOIN Ticket T ON P.Passenger_id = T.Passenger_id 
+JOIN Train TR ON T.Train_no = TR.Train_no WHERE TR.train_name = 'Shatabdi Express' AND T.ticket_status = 'C' AND T.tdate = '2022-03-02'; 
+SELECT * FROM Shatabdi_Confirmed_Passengers; 
+
+2. CREATE VIEW Rajdhani_Confirmed_Bookings_Count AS SELECT COUNT(*) AS confirmed_booking_count FROM Ticket T JOIN Train TR ON 
+T.Train_no = TR.Train_no WHERE TR.train_name = 'Rajdhani Express' AND T.ticket_status = 'C' AND T.tdate = '2022-01-01'; 
+SELECT * FROM Rajdhani_Confirmed_Bookings_Count; 
+
+Q.2) Using above database solve following questions:  
+ 
+CREATE OR REPLACE FUNCTION check_age()  
+RETURNS TRIGGER AS $$ 
+BEGIN 
+  IF NEW.age > 5 THEN 
+    RAISE NOTICE 'Age above 5 years will be charged the full fare'; 
+  END IF; 
+  RETURN NEW; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+CREATE TRIGGER age_check_trigger  
+AFTER INSERT ON Passenger  
+FOR EACH ROW EXECUTE FUNCTION check_age(); 
+ 
+INSERT INTO Passenger  VALUES (6, 'Vikram', 'Delhi', 6, 'M');   
+INSERT INTO Passenger VALUES (7, 'Sita', 'Mumbai', 5, 'F'); 
+ 
+ 
+CREATE OR REPLACE FUNCTION 
+display_train_wise_waiting_bookings() 
+RETURNS VOID AS $$ 
+DECLARE 
+  train_record RECORD; 
+  ticket_record RECORD; 
+  booking_date DATE := '2020-05-02'; 
+BEGIN 
+  FOR train_record IN SELECT Train_no, train_name FROM Train 
+  LOOP 
+    RAISE NOTICE 'Train: %, Train Name: %', train_record.Train_no, 
+train_record.train_name; 
+     
+    FOR ticket_record IN 
+      SELECT T.Ticket_no, P.passenger_name 
+      FROM Ticket T 
+      JOIN Passenger P ON T.Passenger_id = P.Passenger_id 
+      WHERE T.Train_no = train_record.Train_no 
+      AND T.ticket_status = 'W' 
+      AND T.tdate = booking_date 
+    LOOP 
+      RAISE NOTICE 'Ticket No: %, Passenger: %', 
+ticket_record.Ticket_no, ticket_record.passenger_name; 
+    END LOOP; 
+     
+  END LOOP; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+SELECT display_train_wise_waiting_bookings(); 
+SANCHET KOLEKAR
+ 
+
+
+SLIP 9 
+
+ 
+PROJECT-EMPLOYEE DATABASE  
+ 
+Q.1) Create a View:  
+CREATE OR REPLACE VIEW Project_Details AS SELECT p.pname, p.ptype, pe.start_date_of_project FROM Project p JOIN Project_Employee pe ON p.Pno 
+= pe.Pno ORDER BY pe.start_date_of_project;  
+SELECT * FROM Project_Details;  
+CREATE OR REPLACE VIEW Employees_On_Robotics AS SELECT e.Eno, e.ename, e.qualification, e.joining_date FROM Employee e JOIN 
+Project_Employee pe ON e.Eno = pe.Eno JOIN Project p ON p.Pno = pe.Pno WHERE p.pname = 'Robotics'; 
+SELECT * FROM Employees_On_Robotics; 
+ 
+Q.2) Using above database solve following questions:  
+ 
+CREATE OR REPLACE FUNCTION check_duration() 
+RETURNS TRIGGER AS $$ 
+BEGIN 
+    IF NEW.duration <= 0 THEN 
+        RAISE EXCEPTION 'Duration must be greater than zero'; 
+    END IF; 
+    RETURN NEW; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+CREATE TRIGGER before_insert_duration 
+BEFORE INSERT ON Project 
+FOR EACH ROW EXECUTE FUNCTION check_duration(); 
+ 
+INSERT INTO Project VALUES (101, 'AI Research', 'Research', 0); 
+ 
+ 
+CREATE OR REPLACE FUNCTION 
+get_employees_by_project(p_name VARCHAR) 
+RETURNS VOID AS $$ 
+DECLARE 
+    emp_record RECORD; 
+    emp_cursor CURSOR FOR  
+        SELECT e.ename 
+        FROM Employee e 
+        JOIN Project_Employee pe ON e.Eno = pe.Eno 
+        JOIN Project p ON pe.Pno = p.Pno 
+        WHERE p.pname = p_name; 
+BEGIN 
+    OPEN emp_cursor; 
+     
+    LOOP 
+        FETCH emp_cursor INTO emp_record; 
+        EXIT WHEN NOT FOUND; 
+        RAISE NOTICE 'Employee Name: %', emp_record.ename; 
+    END LOOP; 
+     
+    CLOSE emp_cursor; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+SELECT get_employees_by_project('Robotics'); 
+SANCHET KOLEKAR
+ 
+
+
+SLIP 10 
+ 
+
+
+PROJECT-EMPLOYEE DATABASE  
+
+
+ 
+Q.1) Create a View:  
+CREATE OR REPLACE VIEW Employee_Details AS SELECT Eno, ename, qualification, joining_date FROM Employee ORDER BY joining_date;  
+SELECT * FROM Employee_Details;  
+CREATE OR REPLACE VIEW Employees_Worked_Less_Than_100_Hours AS SELECT e.Eno, e.ename, p.pname, pe.no_of_hours_worked FROM Employee 
+e JOIN Project_Employee pe ON e.Eno = pe.Eno JOIN Project p ON p.Pno = pe.Pno WHERE pe.no_of_hours_worked < 100; 
+SELECT * FROM Employees_Worked_Less_Than_100_Hours; 
+ 
+Q.2) Using above database solve following questions:  
+ 
+CREATE OR REPLACE FUNCTION check_joining_date() 
+RETURNS TRIGGER AS $$ 
+BEGIN 
+    IF NEW.joining_date >= CURRENT_DATE THEN 
+        RAISE EXCEPTION 'Joining date must be before the current date.'; 
+    END IF; 
+    RETURN NEW; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+CREATE TRIGGER validate_joining_date 
+BEFORE INSERT OR UPDATE ON Employee 
+FOR EACH ROW 
+EXECUTE FUNCTION check_joining_date(); 
+ 
+INSERT INTO Employee VALUES (101, 'Vijay', 'Bachelors', '2022-09-01'); 
+ 
+INSERT INTO Employee VALUES (102, 'Anil', 'Masters', CURRENT_DATE); 
+ 
+ 
+ 
+CREATE OR REPLACE FUNCTION 
+get_employee_count_by_project(p_project_name VARCHAR) 
+RETURNS INTEGER AS $$ 
+DECLARE 
+    employee_count INTEGER; 
+BEGIN 
+    SELECT COUNT(*) 
+    INTO employee_count 
+    FROM Project 
+    WHERE pname = p_project_name; 
+ 
+    IF employee_count = 0 THEN 
+        RAISE EXCEPTION 'Invalid project name: %', p_project_name; 
+    END IF; 
+ 
+    SELECT COUNT(*) 
+    INTO employee_count 
+    FROM Project_Employee 
+    WHERE project_name = p_project_name; 
+ 
+    RETURN employee_count; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+SELECT get_employee_count_by_project('Robotics'); 
+SANCHET KOLEKAR
+ 
+
+
+SLIP 11 
+
+
+
+ 
+PROJECT-EMPLOYEE DATABASE  
+ 
+ 
+Q.1) Create a View:  
+CREATE OR REPLACE VIEW Employees_On_ERP AS SELECT e.Eno, e.ename, e.qualification, e.joining_date FROM Employee e JOIN Project_Employee pe 
+ON e.Eno = pe.Eno JOIN Project p ON p.Pno = pe.Pno WHERE p.pname = 'ERP';  
+SELECT * FROM Employees_On_ERP; 
+CREATE OR REPLACE VIEW Employees_Worked_More_Than_100_Hours AS SELECT e.Eno, e.ename, p.pname, pe.no_of_hours_worked FROM 
+Employee e JOIN Project_Employee pe ON e.Eno = pe.Eno JOIN Project p ON p.Pno = pe.Pno WHERE pe.no_of_hours_worked > 100; 
+SELECT * FROM Employees_Worked_More_Than_100_Hours; 
+Q.2) Using above database solve following questions:  
+ 
+CREATE OR REPLACE FUNCTION after_project_delete() 
+RETURNS TRIGGER AS $$ 
+BEGIN 
+    RAISE NOTICE 'Project record is being deleted'; 
+    RETURN OLD; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+CREATE TRIGGER project_delete_trigger 
+AFTER DELETE ON Project 
+FOR EACH ROW EXECUTE FUNCTION after_project_delete(); 
+ 
+ 
+DELETE FROM Project WHERE Pno = 1; 
+ 
+ 
+CREATE OR REPLACE FUNCTION 
+count_employees_before_joining_date(target_date DATE) 
+RETURNS INTEGER AS $$ 
+DECLARE 
+    employee_count INTEGER; 
+BEGIN 
+    SELECT COUNT(*) 
+    INTO employee_count 
+    FROM Employee 
+    WHERE joining_date < target_date; 
+ 
+    IF employee_count = 0 THEN 
+        RAISE EXCEPTION 'No employees found who joined before %', 
+target_date; 
+    END IF; 
+ 
+    RETURN employee_count; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+SELECT count_employees_before_joining_date('2022-10-03'); 
+SANCHET KOLEKAR
+ 
+
+
+SLIP 12 
+
+
+ 
+STUDENT-TEACHER DATABASE 
+
+Q.1) Create a View:  
+CREATE VIEW MostExperiencedTeacher AS SELECT s.sname FROM Student s JOIN Student_Teacher st ON s.Sno = st.Sno JOIN Teacher t ON st.Tno = t.Tno 
+WHERE t.experience = (SELECT MAX(experience) FROM Teacher);  
+SELECT * FROM MostExperiencedTeacher; 
+CREATE VIEW SubjectsByTeacher AS SELECT t.tname, st.subject FROM Teacher t JOIN Student_Teacher st ON t.Tno = st.Tno; 
+SELECT * FROM SubjectsByTeacher; 
+ 
+Q.2) Using above database solve following questions:  
+ 
+CREATE OR REPLACE FUNCTION validate_student_number()  
+RETURNS TRIGGER AS $$ 
+BEGIN 
+    IF NEW.Sno <= 0 THEN 
+        RAISE EXCEPTION 'Invalid student number'; 
+    END IF; 
+    RETURN NEW; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+CREATE TRIGGER before_insert_student 
+BEFORE INSERT ON Student 
+FOR EACH ROW 
+EXECUTE FUNCTION validate_student_number();   
+ 
+INSERT INTO Student VALUES (0, 'John Doe', '10th', 'Mumbai'); 
+
+
+ 
+CREATE OR REPLACE FUNCTION 
+count_students_by_subject(subject_name VARCHAR)  
+RETURNS INTEGER AS $$ 
+DECLARE 
+    student_count INTEGER; 
+BEGIN 
+    IF subject_name IS NULL OR subject_name = '' THEN 
+        RAISE EXCEPTION 'Invalid subject name'; 
+    END IF; 
+ 
+    SELECT COUNT(DISTINCT s.Sno) INTO student_count  
+    FROM Student s  
+    JOIN Student_Teacher st ON s.Sno = st.Sno  
+    WHERE st.subject = subject_name; 
+ 
+    RETURN student_count; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+SELECT count_students_by_subject('Mathematics'); 
+ 
+ 
+ 
+ 
+SLIP 12 
+ 
+
+
+Q.1) Create a View:  
+CREATE VIEW PhDTeachers AS SELECT * FROM Teacher WHERE qualification = 'Ph.D.';  
+SELECT * FROM PhDTeachers; 
+CREATE VIEW StudentsInPune AS SELECT * FROM Student WHERE saddr = 'Pune'; 
+SELECT * FROM StudentsInPune; 
+ 
+Q.2) Using above database solve following questions:  
+ 
+CREATE OR REPLACE FUNCTION validate_teacher_experience()  
+RETURNS TRIGGER AS $$ 
+BEGIN 
+    IF NEW.experience < 5 THEN 
+        RAISE EXCEPTION 'Experience should be a minimum of 5 
+years'; 
+    END IF; 
+    RETURN NEW; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+CREATE TRIGGER before_insert_teacher_experience 
+BEFORE INSERT ON Teacher 
+FOR EACH ROW 
+EXECUTE FUNCTION validate_teacher_experience(); 
+ 
+ 
+INSERT INTO Teacher VALUES (1, 'Mr. Smith', 'M.Sc.', 3); 
+ 
+ 
+CREATE OR REPLACE FUNCTION 
+list_teachers_for_student(student_name VARCHAR)  
+RETURNS SETOF Teacher AS $$ 
+DECLARE 
+    teacher_record Teacher%ROWTYPE; 
+    cur CURSOR FOR  
+        SELECT t.*  
+        FROM Teacher t  
+        JOIN Student_Teacher st ON t.Tno = st.Tno  
+        JOIN Student s ON st.Sno = s.Sno  
+        WHERE s.sname = student_name; 
+ 
+BEGIN 
+    OPEN cur; 
+    LOOP 
+        FETCH cur INTO teacher_record; 
+        EXIT WHEN NOT FOUND; 
+        RETURN NEXT teacher_record; 
+    END LOOP; 
+    CLOSE cur; 
+    RETURN; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+SELECT * FROM list_teachers_for_student('Rahul'); 
+SANCHET KOLEKAR
+ 
+
+
+
+SLIP 14 
+ 
+
+
+
+
+Q.1) Create a View:  
+CREATE VIEW ExperiencedTeachers AS SELECT * FROM Teacher WHERE experience > 5;  
+SELECT * FROM ExperiencedTeachers; 
+CREATE VIEW TeachersStartingWithS AS SELECT * FROM Teacher WHERE tname LIKE 'S%'; 
+SELECT * FROM TeachersStartingWithS; 
+ 
+Q.2) Using above database solve following questions:  
+ 
+CREATE OR REPLACE FUNCTION before_update_student_class() 
+RETURNS TRIGGER AS $$ 
+BEGIN 
+    IF OLD.sclass IS DISTINCT FROM NEW.sclass THEN 
+        RAISE NOTICE 'Updating class for student: %', OLD.sname; 
+    END IF; 
+    RETURN NEW; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+CREATE TRIGGER before_update_student_class_trigger 
+BEFORE UPDATE ON Student 
+FOR EACH ROW 
+EXECUTE FUNCTION before_update_student_class(); 
+ 
+UPDATE Student SET sclass = '12th' WHERE sname = 'Rahul'; 
+ 
+ 
+CREATE OR REPLACE FUNCTION 
+count_teachers_for_student(student_name VARCHAR)  
+RETURNS INTEGER AS $$ 
+DECLARE 
+    teacher_count INTEGER; 
+BEGIN 
+    SELECT COUNT(DISTINCT t.Tno) INTO teacher_count 
+    FROM Teacher t 
+    JOIN Student_Teacher st ON t.Tno = st.Tno 
+    JOIN Student s ON st.Sno = s.Sno 
+    WHERE s.sname = student_name; 
+ 
+    RETURN teacher_count; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+SELECT count_teachers_for_student('Rahul'); 
+
+
+
+
+ 
+SLIP 15 
+
+
+
+
+
+ 
+Q.1) Create a View:  
+CREATE VIEW Students_FYBCA AS SELECT sname FROM Students WHERE class = 'FYBCA';  
+SELECT * FROM Students_FYBCA; 
+CREATE VIEW Students_Scored_Above_90 AS SELECT s.sname, sub.subject_name, ss.marks_scored FROM Students s JOIN Students_Subjects ss ON 
+s.Rollno = ss.Rollno JOIN Subjects sub ON ss.Scode = sub.Scode WHERE ss.marks_scored > 90; 
+SELECT * FROM Students_Scored_Above_90; 
+ 
+Q.2) Using above database solve following questions:  
+ 
+CREATE OR REPLACE FUNCTION check_rollno() RETURNS TRIGGER 
+AS $$ 
+BEGIN 
+    IF NEW.Rollno <= 0 THEN 
+        RAISE EXCEPTION 'Error: Roll number must be greater than 
+zero'; 
+    END IF; 
+    RETURN NEW; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+CREATE TRIGGER check_rollno_before_insert 
+BEFORE INSERT ON Students 
+FOR EACH ROW 
+EXECUTE FUNCTION check_rollno(); 
+ 
+INSERT INTO Students VALUES (101, 'Rahul', 'Pune', 'FYBCA'); 
+ 
+INSERT INTO Students VALUES (0, 'Priya', 'Mumbai', 'SYBCA'); 
+ 
+ 
+ 
+CREATE OR REPLACE FUNCTION calculate_total_marks() RETURNS VOID 
+AS $$ 
+DECLARE 
+    student_rec RECORD; 
+    total INTEGER; 
+BEGIN 
+    FOR student_rec IN SELECT DISTINCT Rollno FROM Students_Subjects 
+    LOOP 
+        SELECT SUM(marks_scored) INTO total 
+        FROM Students_Subjects 
+        WHERE Rollno = student_rec.Rollno; 
+         
+        RAISE NOTICE 'Rollno: %, Total Marks: %', student_rec.Rollno, total; 
+    END LOOP; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+SELECT calculate_total_marks(); 
+SANCHET KOLEKAR
+ 
+
+
+SLIP 16 
+ 
+
+
+
+Q.1) Create a View:  
+CREATE VIEW Students_DBMS_Above_80 AS SELECT s.sname FROM Students s JOIN Students_Subjects ss ON s.Rollno = ss.Rollno JOIN Subjects sub ON 
+ss.Scode = sub.Scode WHERE sub.subject_name = 'DBMS' AND ss.marks_scored > 80;  
+SELECT * FROM Students_DBMS_Above_80;  
+CREATE VIEW Students_TYBCA_Details AS SELECT Rollno, sname, city, class FROM Students WHERE class = 'TYBCA'; 
+SELECT * FROM Students_TYBCA_Details; 
+ 
+ 
+Q.2) Using above database solve following questions:  
+ 
+CREATE OR REPLACE FUNCTION notify_delete_student() RETURNS 
+TRIGGER AS $$ 
+BEGIN 
+    RAISE NOTICE 'Student record is being deleted'; 
+    RETURN OLD; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+CREATE TRIGGER notify_student_delete 
+AFTER DELETE ON Students 
+FOR EACH ROW 
+EXECUTE FUNCTION notify_delete_student(); 
+ 
+DELETE FROM Students WHERE Rollno = 101; 
+ 
+ 
+CREATE OR REPLACE FUNCTION get_subject_info(student_name 
+VARCHAR) RETURNS VOID AS $$ 
+DECLARE 
+    subject_rec RECORD; 
+BEGIN 
+    FOR subject_rec IN  
+        SELECT sub.subject_name, ss.marks_scored 
+        FROM Students s 
+        JOIN Students_Subjects ss ON s.Rollno = ss.Rollno 
+        JOIN Subjects sub ON ss.Scode = sub.Scode 
+        WHERE s.sname = student_name 
+    LOOP 
+        RAISE NOTICE 'Subject: %, Marks: %', 
+subject_rec.subject_name, subject_rec.marks_scored; 
+    END LOOP; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+SELECT get_subject_info('Amit'); 
+SANCHET KOLEKAR
+ 
+SLIP 17 
+ 
+STUDENT – MARKS DATABASE 
+ 
+Q.1) Create a View:  
+CREATE VIEW Students_Name_Starts_A AS SELECT Rollno, sname, city, class FROM Students WHERE sname LIKE 'A%';  
+SELECT * FROM Students_Name_Starts_A;  
+CREATE VIEW Students_Scored_Below_40 AS SELECT s.Rollno, s.sname, s.city, s.class, sub.subject_name, ss.marks_scored FROM Students s JOIN 
+Students_Subjects ss ON s.Rollno = ss.Rollno JOIN Subjects sub ON ss.Scode = sub.Scode WHERE ss.marks_scored < 40; 
+SELECT * FROM Students_Scored_Below_40; 
+ 
+Q.2) Using above database solve following questions:  
+ 
+CREATE OR REPLACE FUNCTION check_marks_range() RETURNS TRIGGER 
+AS $$ 
+BEGIN 
+    IF NEW.marks_scored < 0 OR NEW.marks_scored > 100 THEN 
+        RAISE EXCEPTION 'Error: Marks must be between 0 and 100'; 
+    END IF; 
+    RETURN NEW; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+CREATE TRIGGER check_marks_before_insert 
+BEFORE INSERT OR UPDATE ON Students_Subjects 
+FOR EACH ROW 
+EXECUTE FUNCTION check_marks_range(); 
+ 
+INSERT INTO Students_Subjects (101, 'CS101', 85); 
+ 
+INSERT INTO Students_Subjects VALUES (101, 'CS102', -5); 
+ 
+INSERT INTO Students_Subjects VALUES (101, 'CS103', 105); 
+ 
+ 
+ 
+ 
+CREATE OR REPLACE FUNCTION 
+get_students_by_city(student_city VARCHAR) RETURNS VOID AS 
+$$ 
+DECLARE 
+    student_rec RECORD; 
+BEGIN 
+    FOR student_rec IN  
+        SELECT Rollno, sname, city, class 
+        FROM Students 
+        WHERE city = student_city 
+    LOOP 
+        RAISE NOTICE 'Rollno: %, Name: %, City: %, Class: %', 
+student_rec.Rollno, student_rec.sname, student_rec.city, 
+student_rec.class; 
+    END LOOP; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+SELECT get_students_by_city('Mumbai'); 
+
+
+
+SLIP 18 
+
+
+
+ 
+MOVIE_ACTOR_PRODUCER 
+ 
+Q.1) Create a View:  
+CREATE VIEW Actors_In_Mumbai AS SELECT a_name FROM Actor WHERE city = 'Mumbai';  
+SELECT * FROM Actors_In_Mumbai; 
+CREATE VIEW Actors_In_Movies AS SELECT ma.m_name, ma.release_year, a.a_name, ma.role, ma.charges FROM Movie_Actor ma JOIN Actor a ON 
+ma.a_name = a.a_name; 
+SELECT * FROM Actors_In_Movies; 
+ 
+Q.2) Using above database solve following questions:  
+ 
+ 
+CREATE OR REPLACE FUNCTION check_budget() 
+RETURNS TRIGGER AS $$ 
+BEGIN 
+    IF NEW.budget < 6000000 THEN 
+        RAISE EXCEPTION 'Budget must be at least 60 lakhs.'; 
+    END IF; 
+    RETURN NEW; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+CREATE TRIGGER before_insert_budget 
+BEFORE INSERT ON Movie 
+FOR EACH ROW EXECUTE FUNCTION check_budget(); 
+ 
+ 
+INSERT INTO Movie VALUES ('New Movie', 2023, 5000000); 
+ 
+ 
+CREATE OR REPLACE FUNCTION 
+count_movies_by_producer(producer_name CHAR(30)) 
+RETURNS INTEGER AS $$ 
+DECLARE 
+    movie_count INTEGER; 
+BEGIN 
+    SELECT COUNT(*) INTO movie_count 
+    FROM Movie_Producer mp 
+    JOIN Producer p ON mp.producer_id = p.producer_id 
+    WHERE p.pname = producer_name; 
+ 
+    RETURN movie_count; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+SELECT count_movies_by_producer('Mr. Subhash Ghai'); 
+ 
+ 
+SLIP 19 
+
+ 
+Q.1) Create a View:  
+CREATE VIEW Actors_In_Sholey AS SELECT ma.a_name, ma.role, ma.charges FROM Movie_Actor ma WHERE ma.m_name = 'Sholey' AND 
+ma.release_year = 1975;  
+SELECT * FROM Actors_In_Sholey; 
+CREATE VIEW Producers_More_Than_Two_Movies AS SELECT p.pname FROM Producer p JOIN Movie_Producer mp ON p.producer_id = 
+mp.producer_id GROUP BY p.pname HAVING COUNT(mp.m_name) > 2; 
+SELECT * FROM Producers_More_Than_Two_Movies; 
+ 
+Q.2) Using above database solve following questions:  
+ 
+ 
+CREATE OR REPLACE FUNCTION check_charges() 
+RETURNS TRIGGER AS $$ 
+BEGIN 
+    IF NEW.charges > 3000000 THEN 
+        RAISE EXCEPTION 'Charges cannot be more than 30 lakhs.'; 
+    END IF; 
+    RETURN NEW; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+CREATE TRIGGER before_insert_charges 
+BEFORE INSERT ON Movie_Actor 
+FOR EACH ROW EXECUTE FUNCTION check_charges(); 
+ 
+INSERT INTO Movie_Actor VALUES ('Sholey', 1975, 'Amitabh 
+Bachchan', 'Lead', 4000000); 
+
+ 
+CREATE OR REPLACE FUNCTION movies_by_actor(actor_name 
+CHAR(30)) 
+RETURNS VOID AS $$ 
+DECLARE 
+    movie_name VARCHAR(25); 
+BEGIN 
+    FOR movie_name IN 
+        SELECT ma.m_name 
+        FROM Movie_Actor ma 
+        WHERE ma.a_name = actor_name 
+    LOOP 
+        RAISE NOTICE 'Movie: %', movie_name; 
+    END LOOP; 
+ 
+    IF NOT FOUND THEN 
+        RAISE EXCEPTION 'Invalid actor name: %', actor_name; 
+    END IF; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+SELECT movies_by_actor('Amitabh Bachchan'); 
+ 
+
+ 
+SLIP 20 
+ 
+
+ 
+Q.1) Create a View:  
+CREATE VIEW Movies_Produced_By_Subhash_Ghai AS SELECT mp.m_name, mp.release_year FROM Movie_Producer mp JOIN Producer p ON 
+mp.producer_id = p.producer_id WHERE p.pname = 'Mr. Subhash Ghai';  
+SELECT * FROM Movies_Produced_By_Subhash_Ghai; 
+CREATE VIEW Actors_Not_In_Mumbai_Or_Pune AS SELECT a_name FROM Actor WHERE city NOT IN ('Mumbai', 'Pune'); 
+SELECT * FROM Actors_Not_In_Mumbai_Or_Pune; 
+ 
+Q.2) Using above database solve following questions:  
+ 
+ 
+CREATE OR REPLACE FUNCTION check_release_year() 
+RETURNS TRIGGER AS $$ 
+BEGIN 
+    IF NEW.release_year > EXTRACT(YEAR FROM CURRENT_DATE) 
+THEN 
+        RAISE EXCEPTION 'Release year cannot be greater than the 
+current year.'; 
+    END IF; 
+    RETURN NEW; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+CREATE TRIGGER before_insert_release_year 
+BEFORE INSERT ON Movie 
+FOR EACH ROW EXECUTE FUNCTION check_release_year(); 
+ 
+INSERT INTO Movie VALUES ('Tere Naam', 2025, 6000000);   
+ 
+ 
+
+ 
+CREATE OR REPLACE FUNCTION charges_of_amitabh_bachchan() 
+RETURNS VOID AS $$ 
+DECLARE 
+    rec RECORD; 
+    cur CURSOR FOR 
+        SELECT ma.m_name, ma.release_year, ma.charges 
+        FROM Movie_Actor ma 
+        WHERE ma.a_name = 'Amitabh Bachchan'; 
+ 
+BEGIN 
+    OPEN cur; 
+    LOOP 
+        FETCH cur INTO rec; 
+        EXIT WHEN NOT FOUND; 
+        RAISE NOTICE 'Movie: %, Year: %, Charges: %', rec.m_name, 
+rec.release_year, rec.charges; 
+    END LOOP; 
+    CLOSE cur; 
+END; 
+$$ LANGUAGE plpgsql; 
+ 
+SELECT charges_of_amitabh_bachchan(); 
+ 
